@@ -240,34 +240,30 @@
 
             let tracks = [];
 
-            // Essayer d'abord de charger via playlist.json
+            // Charger les morceaux : d'abord via l'API GitHub, sinon via playlist.json
             try {
-                const res = await fetch('playlist.json', { cache: 'no-store' });
+                const res = await fetch('https://api.github.com/repos/digitradio/lienradio/contents/mp3', { cache: 'no-store' });
                 if (res.ok) {
-                    tracks = await res.json();
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        tracks = data
+                            .filter(item => item.name && item.name.toLowerCase().endsWith('.mp3'))
+                            .map(item => item.name);
+                    }
                 }
             } catch (e) {
-                console.warn("Impossible de charger playlist.json:", e);
+                console.warn("Impossible de contacter l'API GitHub:", e);
             }
 
-            // Essayer l'API GitHub si disponible et si playlist.json est vide
+            // Fallback : si l'API GitHub n'a rien renvoyé (ex: limite de requêtes ou dépôt privé), charger playlist.json
             if (!tracks || tracks.length === 0) {
                 try {
-                    // Détection du chemin repo si hébergé sur GitHub Pages (username.github.io/repo)
-                    const pathSegments = window.location.pathname.split('/').filter(Boolean);
-                    const host = window.location.hostname;
-                    if (host.endsWith('github.io') && pathSegments.length > 0) {
-                        const user = host.split('.')[0];
-                        const repo = pathSegments[0];
-                        const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/mp3`;
-                        const res = await fetch(apiUrl);
-                        if (res.ok) {
-                            const data = await res.json();
-                            tracks = data.filter(item => item.name.toLowerCase().endsWith('.mp3')).map(item => item.name);
-                        }
+                    const res = await fetch('playlist.json', { cache: 'no-store' });
+                    if (res.ok) {
+                        tracks = await res.json();
                     }
                 } catch (e) {
-                    console.warn("Erreur API GitHub:", e);
+                    console.warn("Impossible de charger playlist.json:", e);
                 }
             }
 
